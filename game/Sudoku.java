@@ -35,7 +35,7 @@ public class Sudoku {
 
         this.originalGrid = grid;
         this.grid = toCells(grid);
-//        Mark.mark(this);
+        Mark.mark(this);
     }
 
     public Sudoku copyLocked(){
@@ -322,9 +322,11 @@ public class Sudoku {
         return this.grid.set(index, cell);
     }
 
-    public Sudoku mutate() {
+    public Sudoku mutate(Double mutationRate) {
         for(int i = 0; i < Group.GROUP_SIZE; i++) {
-            setBox(i, getBox(i).swap2());
+            if(ThreadLocalRandom.current().nextInt(0, 101) <= mutationRate * 100) {
+                setBox(i, getBox(i).swap2());
+            }
         }
         return this;
     }
