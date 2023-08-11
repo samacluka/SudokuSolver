@@ -2,9 +2,7 @@ package game;
 
 import lombok.Data;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Data
@@ -64,46 +62,38 @@ public class Group {
     }
 
     public Group swap2(){
-        Cell c1 = null;
-        Cell c2 = null;
-        Integer i1 = -1;
-        Integer i2 = -1;
-        List<Integer> seenInts = new ArrayList<>();
-
-        // GET C1 to swap
-        do {
-            i1 = ThreadLocalRandom.current().nextInt(0, GROUP_SIZE);
-
-            if(!seenInts.contains(i1)) seenInts.add(i1);
-
-            c1 = this.get(i1);
-        } while(c1 != null && !c1.isLocked().equals(Boolean.TRUE) && seenInts.size() < GROUP_SIZE);
-
-
-        seenInts = new ArrayList<>();
-        seenInts.add(i1);
-
-        // GET C2 to swap
-        do {
-            i2 = ThreadLocalRandom.current().nextInt(0, GROUP_SIZE);
-            if(Objects.equals(i1, i2)) continue;
-
-            if(!seenInts.contains(i2)) seenInts.add(i2);
-
-            c2 = this.get(i2);
-        } while(c2 != null && !c2.isLocked().equals(Boolean.TRUE) && seenInts.size() < GROUP_SIZE);
-
-        if (c1 != null && !c1.isLocked().equals(Boolean.TRUE) && c2 != null && !c2.isLocked().equals(Boolean.TRUE)) {
-            Cell[] g = this.value.clone();
-            Cell tmp = g[i1];
-            g[i1] = g[i2];
-            g[i2] = tmp;
-
-            g[i1].setPosition(i2);
-            g[i2].setPosition(i1);
-
-            this.value = g;
+        // Collect all Non Locked Cells in this group
+        Cell c;
+        List<Integer> nonLocked = new ArrayList<>();
+        for(int i = 0; i < this.value.length; i++){
+            c = this.value[i];
+            if(c != null && !c.isLocked()) nonLocked.add(i);
         }
+        if(nonLocked.size() < 2) return this; // if there's less than 2, we can't swap anything
+
+        Collections.shuffle(nonLocked); // shuffle for randomness
+
+        // Get the index of the two that will be swapped
+        Integer i1 = nonLocked.get(0);
+        Integer i2 = nonLocked.get(1);
+
+        // clone this group so we're not manipulating it directly
+        Cell[] g = this.value.clone();
+
+        // cache the grid indexes of the two selected cells
+        Integer gi1 = g[i1].getIndex();
+        Integer gi2 = g[i2].getIndex();
+
+        // swap the two cells
+        Cell tmp = g[i1];
+        g[i1] = g[i2];
+        g[i2] = tmp;
+
+        // set their position info based on the cached values
+        g[i1].setPosition(gi1);
+        g[i2].setPosition(gi2);
+
+        this.value = g;
 
         return this;
     }
