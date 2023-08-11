@@ -17,57 +17,37 @@ public class Genie {
     private Double randomSelectionRate;
     private Integer nbChildren;
     private Integer maxNbGenerations;
-    private Double mutationRate;
-    private HashMap<Method[], Integer> crossoverMethods;
 
     private Integer maxNbGenerationsWithoutImprovement;
+    private Long startTime;
 
-    public static void main(String[] args) throws Exception {
-        long startTime = System.currentTimeMillis();
-
+    public static void main(String[] args) {
         new Genie();
-
-        long endTime = System.currentTimeMillis();
-        long executionTime = endTime - startTime;
-
-        long hours = executionTime / (60 * 60 * 1000);
-        long minutes = (executionTime % (60 * 60 * 1000)) / (60 * 1000);
-        long seconds = (executionTime % (60 * 1000)) / 1000;
-        long milliseconds = executionTime % 1000;
-
-        System.out.println("Execution time: " + hours + " hours, " +
-                minutes + " minutes, " +
-                seconds + " seconds, " +
-                milliseconds + " milliseconds");
     }
 
-    public Genie() throws Exception {
+    public Genie() {
+        this.startExecutionTimer();
+
         Integer[] grid = {
-            8, 0, 2,   0, 0, 3,   5, 1, 0,
-            0, 6, 0,   0, 9, 1,   0, 0, 3,
-            7, 0, 1,   0, 0, 0,   8, 9, 4,
+            7, 9, 0,   0, 0, 0,   0, 0, 3,
+            0, 0, 0,   0, 0, 0,   0, 6, 0,
+            8, 0, 1,   0, 0, 4,   0, 0, 2,
 
-            6, 0, 8,   0, 0, 4,   0, 2, 1,
-            0, 0, 0,   2, 5, 8,   0, 6, 0,
-            9, 2, 0,   3, 1, 0,   4, 0, 0,
+            0, 0, 5,   0, 0, 0,   0, 0, 0,
+            3, 0, 0,   1, 0, 0,   0, 0, 0,
+            0, 4, 0,   0, 0, 6,   2, 0, 9,
 
-            0, 0, 0,   4, 0, 2,   7, 8, 0,
-            0, 0, 5,   0, 8, 9,   0, 0, 0,
-            2, 0, 0,   0, 0, 7,   1, 0, 0
+            2, 0, 0,   0, 3, 0,   0, 0, 6,
+            0, 3, 0,   6, 0, 5,   4, 2, 1,
+            0, 0, 0,   0, 0, 0,   0, 0, 0
         };
 
-        populationSize = 5000;
-        selectionRate = 0.2;
-        randomSelectionRate = 0.3;
-        nbChildren = 4;
-        mutationRate = 0.6;
+        populationSize = 8000;
+        selectionRate = 0.4;
+        randomSelectionRate = 0.4;
+        nbChildren = 10;
         maxNbGenerations = 500;
         maxNbGenerationsWithoutImprovement = 50;
-        crossoverMethods = new HashMap<>();
-
-        crossoverMethods.put(new Method[]{Sudoku.class.getMethod("getRow", Integer.class), Sudoku.class.getMethod("setRow", Integer.class, Group.class)}, Group.GROUP_SIZE);
-        crossoverMethods.put(new Method[]{Sudoku.class.getMethod("getColumn", Integer.class) , Sudoku.class.getMethod("setColumn", Integer.class, Group.class)}, Group.GROUP_SIZE);
-        crossoverMethods.put(new Method[]{Sudoku.class.getMethod("getBox", Integer.class) , Sudoku.class.getMethod("setBox", Integer.class, Group.class)}, Group.GROUP_SIZE);
 
         original = new Sudoku(grid);
 
@@ -84,9 +64,12 @@ public class Genie {
                 System.err.println("No solution was found.");
             }
             else {
+                System.err.println("Solution found!");
                 solution.display();
             }
         }
+
+        this.printExecutionTimer();
     }
 
     private Sudoku solveGA(Sudoku origin) {
@@ -114,9 +97,10 @@ public class Genie {
                 }
 
                 population = matePopulation(population);
-                population = mutatePopulation(population);
+                population = mutatePopulation(population, nbGenerationsWithoutImprovement);
 
                 overallNbGenerations++;
+
                 System.out.println(String.format("Generation %s has a best score of %s", overallNbGenerations, bestScore));
                 System.out.println(" ");
                 population[0].display();
@@ -161,8 +145,8 @@ public class Genie {
         Sudoku[] newPopulation = new Sudoku[population.length];
         Sudoku[] children;
         for(int i = 0; i < population.length; i = i + nbChildren){
-            children = mateCrossover( getParents(population) );
-            System.arraycopy(children, 0, newPopulation, i, children.length);
+            children = mate( getParents(population) );
+            System.arraycopy(children, 0, newPopulation, i, (i + children.length > population.length ? population.length - i : children.length));
         }
 
         return newPopulation;
@@ -186,31 +170,10 @@ public class Genie {
         return parents.toArray(new Sudoku[0]);
     }
 
-    private Sudoku[] mutatePopulation(Sudoku[] population) {
-        Sudoku[] mutatedPopulation = new Sudoku[population.length];
-        for(int i = 0; i < population.length; i++){
-            mutatedPopulation[i] = ThreadLocalRandom.current().nextInt(0, 101) <= mutationRate * 100 ? population[i].mutate() : population[i];
-        }
-        return mutatedPopulation;
-    }
-
-    private Sudoku[] mateCrossover(Sudoku[] parents){
-        return mate(parents, "crossover");
-    }
-
-    private Sudoku[] mateBestGenes(Sudoku[] parents){
-        return mate(parents, "bestGenes");
-    }
-
-    private Sudoku[] mate(Sudoku[] parents, String type){
+    private Sudoku[] mate(Sudoku[] parents){
         Sudoku[] children = new Sudoku[nbChildren];
 
-        List<Method[]> methods = new ArrayList<>(crossoverMethods.keySet());
-        List<Integer> maxCrossoverPoints = new ArrayList<>(crossoverMethods.values());
-
-        int methodIndex = 2; // Always boxes //ThreadLocalRandom.current().nextInt(0, methods.size());
-        Method[] method = methods.get(methodIndex);
-        Integer maxCrossoverPoint = maxCrossoverPoints.get(methodIndex);
+        Integer maxCrossoverPoint = Group.GROUP_SIZE;
 
         int p1;
         int p2;
@@ -236,15 +199,7 @@ public class Genie {
                 // for all the crossOverPoints
                 for(int i = 0; i < maxCrossoverPoint; i++){
                     int crossoverPoint = ThreadLocalRandom.current().nextInt(0, maxCrossoverPoint);
-                    method[1].invoke(
-                        children[j],
-                        i,
-                        (
-                            Objects.equals(type, "crossover") ? getCrossover(method[0], i, crossoverPoint, parent1, parent2) :
-                            Objects.equals(type, "bestGenes") ? getBestGene(method[0], i, parent1, parent2) :
-                            null
-                        )
-                    );
+                    children[j].setBox(i, getCrossover(i, crossoverPoint, parent1, parent2));
                 }
             }
         }
@@ -255,27 +210,55 @@ public class Genie {
         return children;
     }
 
-    private Group getCrossover(Method method, int groupIndex, int crossoverPoint, Sudoku parent1, Sudoku parent2) throws IllegalAccessException, InvocationTargetException {
-        return (Group) method.invoke(
-            groupIndex > crossoverPoint ? parent1 : parent2, // take from one or the other parent based on the crossover point
-            groupIndex
-        );
+    private Group getCrossover(int groupIndex, int crossoverPoint, Sudoku parent1, Sudoku parent2) throws IllegalAccessException, InvocationTargetException {
+        Sudoku parent = groupIndex > crossoverPoint ? parent1 : parent2; // take from one or the other parent based on the crossover point
+        return parent.getBox( groupIndex );
     }
 
-    private Group getBestGene(Method method, int groupIndex, Sudoku parent1, Sudoku parent2) throws IllegalAccessException, InvocationTargetException {
-        Group g1 = (Group) method.invoke(parent1, groupIndex);
-        Group g2 = (Group) method.invoke(parent2, groupIndex);
-
-        return g1.getIsValid() && !g2.getIsValid() ? g1 :
-        !g1.getIsValid() && g2.getIsValid() ? g2 :
-        ThreadLocalRandom.current().nextInt(0, 1) == 1 ? g1 : g2;
+    private Sudoku[] mutatePopulation(Sudoku[] population, Integer generationNb) {
+        Sudoku[] mutatedPopulation = new Sudoku[population.length];
+        Double mutationRate = getMutationRate(generationNb);
+        System.out.println(String.format("Mutation Rate: %s", mutationRate));
+        for(int i = 0; i < population.length; i++){
+            mutatedPopulation[i] = ThreadLocalRandom.current().nextInt(0, 101) <= mutationRate * 100 ? population[i].mutate(mutationRate) : population[i];
+        }
+        return mutatedPopulation;
     }
 
+    private Double getMutationRate(Integer generationNb){
+        Double endMutationRate = 1.0;
+        Double startMutationRate = 0.4;
+        Double steepnessCoefficient = 25.0;
+        Double e = 2.71828182845904523536028747135266249775724709369995;
+
+        Double exp = 6.0 - ((steepnessCoefficient / maxNbGenerationsWithoutImprovement) * generationNb);
+
+        return (endMutationRate - startMutationRate) / (1 + Math.pow(e, exp)) + startMutationRate;
+    }
+
+    private void startExecutionTimer(){
+        startTime = System.currentTimeMillis();
+    }
+
+    private void printExecutionTimer(){
+        long endTime = System.currentTimeMillis();
+        long executionTime = endTime - startTime;
+
+        long hours = executionTime / (60 * 60 * 1000);
+        long minutes = (executionTime % (60 * 60 * 1000)) / (60 * 1000);
+        long seconds = (executionTime % (60 * 1000)) / 1000;
+        long milliseconds = executionTime % 1000;
+
+        System.out.println("Execution time: " + hours + " hours, " +
+                minutes + " minutes, " +
+                seconds + " seconds, " +
+                milliseconds + " milliseconds");
+    }
 }
 
-/*******************************************/
-/** PENCIL MARK SOLVES IN ~10 MILLISECONDS */
-/*******************************************/
+/*************************************/
+/** MARK SOLVES IN ~10 MILLISECONDS */
+/***********************************/
 //    Integer[] grid = {
 //            8, 0, 2,   0, 0, 3,   5, 1, 0,
 //            0, 6, 0,   0, 9, 1,   0, 0, 3,
@@ -304,8 +287,22 @@ public class Genie {
 //        0, 1, 0,   0, 0, 9,   8, 0, 7
 //};
 
+//Integer[] grid = {
+//        0, 8, 0,   0, 0, 0,   0, 9, 0,
+//        0, 0, 7,   5, 0, 2,   8, 0, 0,
+//        6, 0, 0,   8, 0, 7,   0, 0, 5,
+//
+//        3, 7, 0,   0, 8, 0,   0, 5, 1,
+//        2, 0, 0,   0, 0, 0,   0, 0, 8,
+//        9, 5, 0,   0, 4, 0,   0, 3, 2,
+//
+//        8, 0, 0,   1, 0, 4,   0, 0, 9,
+//        0, 0, 1,   9, 0, 3,   6, 0, 0,
+//        0, 4, 0,   0, 0, 0,   0, 2, 0
+//};
+
 /*******************************************/
-/** ********** BEYOND MY PATIENCE ******** */
+/** ********** SOLVED IN ~ 2 MINS ******** */
 /*******************************************/
 //Integer[] grid = {
 //        0, 8, 0,   0, 0, 0,   0, 0, 3,
@@ -333,4 +330,18 @@ public class Genie {
 //        0, 0, 0,   7, 5, 0,   0, 0, 9,
 //        7, 4, 0,   0, 9, 3,   0, 0, 0,
 //        3, 0, 9,   0, 0, 0,   0, 2, 7
+//};
+
+//Integer[] grid = {
+//        0, 0, 6,   0, 0, 0,   0, 0, 0,
+//        0, 8, 0,   0, 5, 4,   2, 0, 0,
+//        0, 4, 0,   0, 9, 0,   0, 7, 0,
+//
+//        0, 0, 7,   9, 0, 0,   3, 0, 0,
+//        0, 0, 0,   0, 8, 0,   4, 0, 0,
+//        6, 0, 0,   0, 0, 0,   1, 0, 0,
+//
+//        2, 0, 3,   0, 0, 0,   0, 0, 1,
+//        0, 0, 0,   5, 0, 0,   0, 4, 0,
+//        0, 0, 8,   3, 0, 0,   5, 0, 2
 //};
