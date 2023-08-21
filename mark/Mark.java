@@ -24,7 +24,7 @@ public class Mark {
 
         HashMap<Integer, List<Boolean>> marks = new HashMap<>();
         for(Cell c : grid){
-            marks.put(c.getIndex(), populateList(Boolean.TRUE, Cell.MAX_VALUE));
+            marks.put(c.getIndex(), populateList(Boolean.TRUE, sudoku.getGroupSize()));
         }
 
         for(Cell cell : grid){

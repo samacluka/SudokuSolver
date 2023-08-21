@@ -6,7 +6,6 @@ import lombok.Data;
 public class Cell {
 
     public static Integer MIN_VALUE = 1; // Should always be 1
-    public static Integer MAX_VALUE = 9; // Should be squares 9, 16, 25, 36, 49, 64, 81 ...
 
     private Boolean isGiven;
     private Boolean isMarked = Boolean.FALSE;
@@ -18,13 +17,12 @@ public class Cell {
     private Integer rowPosition;
     private Integer boxPosition;
 
-    public Cell(Integer value){
-        new Cell(value, null);
-    }
+    private Integer maxValue;
 
-    public Cell(Integer value, Integer index){
-        this.value = value == null || value > Cell.MAX_VALUE || value < Cell.MIN_VALUE ? null : value;
+    public Cell(Integer maxValue, Integer value, Integer index){
+        this.value = value == null || value > maxValue || value < Cell.MIN_VALUE ? null : value;
         this.isGiven = this.value != null;
+        this.maxValue = maxValue;
         this.setPosition(index);
     }
 
@@ -50,23 +48,22 @@ public class Cell {
     public Boolean validate () {
         // MIN VALUE = 1
         // MAX VALUE = GROUP_SIZE
-        return this.value != null && this.value >= MIN_VALUE && this.value <= MAX_VALUE;
+        return this.value != null && this.value >= 1 && this.value <= this.maxValue;
     }
 
     public void setPosition(Integer index){
         this.index = index;
 
         if(index != null) {
-            this.columnPosition = index % Group.GROUP_SIZE;
-            this.rowPosition = index / Group.GROUP_SIZE;
+            this.columnPosition = index % this.maxValue;
+            this.rowPosition = index / this.maxValue;
 
-            Double tmp = Math.sqrt(Cell.MAX_VALUE);
-            Integer sqrt = tmp.intValue();
+            Integer boxSize = ((Double) Math.sqrt(this.maxValue)).intValue();
 
-            int x = columnPosition / sqrt;
-            int y = rowPosition / sqrt;
+            int x = columnPosition / boxSize;
+            int y = rowPosition / boxSize;
 
-            this.boxPosition = (y * sqrt) + x;
+            this.boxPosition = (y * boxSize) + x;
         }
         else {
             this.columnPosition = null;

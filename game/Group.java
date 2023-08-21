@@ -3,33 +3,22 @@ package game;
 import lombok.Data;
 
 import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Data
 public class Group {
 
-    public static Integer GROUP_SIZE = Cell.MAX_VALUE;
-
-    private Cell[] value = new Cell[GROUP_SIZE];
+    private Cell[] value;
 
     private List<Integer> asserted = new ArrayList<>();
     private List<Integer> compliments = new ArrayList<>();
     private Boolean isValid;
+    private Integer groupSize;
 
-    public Group(){
-        for(int c = Cell.MIN_VALUE; c <= Cell.MAX_VALUE; c++) {
+    public Group(Integer groupSize){
+        this.groupSize = groupSize;
+        this.value = Arrays.stream(new Cell[this.groupSize]).toArray(Cell[]::new);
+        for(int c = Cell.MIN_VALUE; c <= groupSize; c++) {
             this.compliments.add(c);
-        }
-    }
-
-    public Group(Integer[] values) {
-        for(int c = Cell.MIN_VALUE; c <= Cell.MAX_VALUE; c++) {
-            this.compliments.add(c);
-        }
-
-        int i = 0;
-        for(Integer v : values) {
-            this.setCell(i++, new Cell(v));
         }
     }
 
@@ -42,7 +31,7 @@ public class Group {
         }
     }
 
-    public Cell get(Integer i){
+    public Cell getCell(Integer i){
         return this.value[i];
     }
 
@@ -51,14 +40,13 @@ public class Group {
     }
 
     public Boolean validate () {
-        if(this.value.length > GROUP_SIZE || this.value.length < 1) throw new RuntimeException("BAD GROUPING SIZE");
+        if(this.value.length > groupSize || this.value.length < 1) throw new RuntimeException("BAD GROUPING SIZE");
 
-        boolean valid = Boolean.TRUE;
         for (Cell c : this.value){
-            valid = valid && (c == null ? Boolean.FALSE : c.validate());
+            if(c == null || !c.validate()) return Boolean.FALSE;
         }
 
-        return valid && this.numDuplicates() == 0;
+        return this.numDuplicates() == 0;
     }
 
     public Group swap2(){

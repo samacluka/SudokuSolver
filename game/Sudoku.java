@@ -3,35 +3,21 @@ package game;
 import lombok.Data;
 import mark.Mark;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 @Data
 public class Sudoku {
-
-    public static Integer[] EMPTY_GRID = {
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0,
-        0, 0, 0,   0, 0, 0,   0, 0, 0
-    };
+    private Integer groupSize;
     private Integer[] originalGrid;
     private List<Cell> grid;
     private Integer score = null;
 
     public Sudoku(Integer[] grid) {
-        if(grid.length != (Cell.MAX_VALUE * Cell.MAX_VALUE)) throw new RuntimeException("BAD PUZZLE SIZE");
+        this.groupSize = ((Double) Math.sqrt(grid.length)).intValue();
+
+        if(grid.length != Math.pow(groupSize, 2)) throw new RuntimeException("BAD PUZZLE SIZE");
 
         this.originalGrid = grid;
         this.grid = toCells(grid);
@@ -39,7 +25,11 @@ public class Sudoku {
     }
 
     public Sudoku copyLocked(){
-        Sudoku copy = new Sudoku(EMPTY_GRID);
+        // Initialize with empty grid
+        Sudoku copy = new Sudoku(
+            Arrays.stream(new Integer[this.originalGrid.length]).map(x -> x = 0).toArray(Integer[]::new)
+        );
+
         for(Cell c : this.grid){
             copy.setCell(c.getColumnPosition(), c.getRowPosition(), c.isLocked().equals(Boolean.TRUE) ? c : null);
         }
@@ -50,7 +40,7 @@ public class Sudoku {
         for(Cell c : this.grid){
             if(c.getValue() == null && !c.isLocked()) {
                 c.setValue(
-                    ThreadLocalRandom.current().nextInt(Cell.MIN_VALUE, (Cell.MAX_VALUE + 1))
+                    ThreadLocalRandom.current().nextInt(Cell.MIN_VALUE, (this.groupSize + 1))
                 );
             }
         }
@@ -59,7 +49,7 @@ public class Sudoku {
 
     public Sudoku fillBoxes(){
         HashMap<Integer, List<Integer>> comps = new HashMap<>();
-        for(int i = 0; i < Group.GROUP_SIZE; i++){
+        for(int i = 0; i < groupSize; i++){
             List<Integer> c = getBox(i).getCompliments();
             Collections.shuffle(c);
             comps.put(i, c);
@@ -76,7 +66,7 @@ public class Sudoku {
                     comps.put(c.getBoxPosition(), comp);
                 }
                 else {
-                    c.setValue( ThreadLocalRandom.current().nextInt(Cell.MIN_VALUE, (Cell.MAX_VALUE + 1)) );
+                    c.setValue( ThreadLocalRandom.current().nextInt(Cell.MIN_VALUE, (this.groupSize + 1)) );
                 }
             }
         }
@@ -89,8 +79,7 @@ public class Sudoku {
         String redColour = "\033[0;31m";
         String greenColour = "\033[0;32m";
 
-        Double tmp = Math.sqrt(Group.GROUP_SIZE);
-        Integer sqrt = tmp.intValue();
+        Integer groupLength = ((Double) Math.sqrt(this.groupSize)).intValue();
 
         // this.rawGrid.length == (Cell.MAX_VALUE * Cell.MAX_VALUE)
         StringBuilder str = new StringBuilder();
@@ -106,9 +95,9 @@ public class Sudoku {
             str.append(resetColour);
 
             // if end of row
-            if((i+1) % Group.GROUP_SIZE == 0) {
+            if((i+1) % this.groupSize == 0) {
                 // if end of a group of rows (to insert a line between them)
-                if((i+1) % (Group.GROUP_SIZE * sqrt) == 0 && (i+1) % Math.pow(Group.GROUP_SIZE, 2) != 0) {
+                if((i+1) % (this.groupSize * groupLength) == 0 && (i+1) % Math.pow(this.groupSize, 2) != 0) {
                     String strCopy = str.toString();
 
                     System.out.println(str);
@@ -129,7 +118,7 @@ public class Sudoku {
                 System.out.println(str);
                 str = new StringBuilder();
             }
-            else if((i+1) % sqrt == 0) {
+            else if((i+1) % groupLength == 0) {
                 str.append(" |");
             }
         }
@@ -145,17 +134,17 @@ public class Sudoku {
         int s = 0;
 
         // All Boxes
-        for(int i = 0; i < Cell.MAX_VALUE; i++){
+        for(int i = 0; i < groupSize; i++){
             s += getBox(i).numDuplicates();
         }
 
         // All Rows
-        for(int i = 0; i < Cell.MAX_VALUE; i++){
+        for(int i = 0; i < groupSize; i++){
             s += getRow(i).numDuplicates();
         }
 
         // All Columns
-        for(int i = 0; i < Cell.MAX_VALUE; i++){
+        for(int i = 0; i < groupSize; i++){
             s += getColumn(i).numDuplicates();
         }
 
@@ -172,7 +161,7 @@ public class Sudoku {
 
         int index = 0;
         for(Integer v : grid){
-            cells.add(new Cell(v, index++));
+            cells.add(new Cell(groupSize, v, index++));
         }
         return cells;
     }
@@ -195,13 +184,12 @@ public class Sudoku {
      *
      * */
     public Group getBox(Integer x, Integer y) {
-        Double tmp = Math.sqrt(Cell.MAX_VALUE);
-        Integer sqrt = tmp.intValue();
+        Integer boxLength = ((Double) Math.sqrt(this.groupSize)).intValue();
 
-        x = x / sqrt;
-        y = y / sqrt;
+        x = x / boxLength;
+        y = y / boxLength;
 
-        return getBox((y * sqrt) + x);
+        return getBox((y * boxLength) + x);
     }
 
     /**
@@ -214,17 +202,16 @@ public class Sudoku {
      *
      * */
     public Group getBox(Integer index) {
-        Group group = new Group();
+        Group group = new Group(this.groupSize);
 
-        Double tmp = Math.sqrt(Group.GROUP_SIZE);
-        Integer sqrt = tmp.intValue();
+        Integer boxLength = ((Double) Math.sqrt(this.groupSize)).intValue();
 
-        Integer startColumn = (index % sqrt) * sqrt;
-        Integer startRow = (index / sqrt) * sqrt;
+        Integer startColumn = (index % boxLength) * boxLength;
+        Integer startRow = (index / boxLength) * boxLength;
 
         int i = 0;
-        for (int x = startColumn; x < (startColumn + sqrt); x++) {
-            for (int y = startRow; y < (startRow + sqrt); y++) {
+        for (int x = startColumn; x < (startColumn + boxLength); x++) {
+            for (int y = startRow; y < (startRow + boxLength); y++) {
                 group.setCell(i++, getCell(x, y));
             }
         }
@@ -233,24 +220,23 @@ public class Sudoku {
     }
 
     public void setBox(Integer index, Group group) {
-        Double tmp = Math.sqrt(Cell.MAX_VALUE);
-        Integer sqrt = tmp.intValue();
+        Integer boxLength = ((Double) Math.sqrt(this.groupSize)).intValue();
 
-        Integer startColumn = (index % sqrt) * sqrt;
-        Integer startRow = (index / sqrt) * sqrt;
+        Integer startColumn = (index % boxLength) * boxLength;
+        Integer startRow = (index / boxLength) * boxLength;
 
         int c = 0;
-        for (int x = startColumn; x < (startColumn + sqrt); x++) {
-            for (int y = startRow; y < (startRow + sqrt); y++) {
-                setCell(x, y, group.get(c++));
+        for (int x = startColumn; x < (startColumn + boxLength); x++) {
+            for (int y = startRow; y < (startRow + boxLength); y++) {
+                setCell(x, y, group.getCell(c++));
             }
         }
     }
 
     public Group getRow(Integer index) {
-        Group group = new Group();
+        Group group = new Group(this.groupSize);
 
-        for(int i = 0; i < Cell.MAX_VALUE; i++){
+        for(int i = 0; i < this.groupSize; i++){
             group.setCell(i, getCell(i, index));
         }
 
@@ -258,15 +244,15 @@ public class Sudoku {
     }
 
     public void setRow(Integer index, Group group) {
-        for(int i = 0; i < Cell.MAX_VALUE; i++){
-            setCell(i, index, group.get(i));
+        for(int i = 0; i < this.groupSize; i++){
+            setCell(i, index, group.getCell(i));
         }
     }
 
     public Group getColumn(Integer index) {
-        Group group = new Group();
+        Group group = new Group(this.groupSize);
 
-        for (int i = 0; i < Cell.MAX_VALUE; i++) {
+        for (int i = 0; i < this.groupSize; i++) {
             group.setCell(i, getCell(index, i));
         }
 
@@ -274,8 +260,8 @@ public class Sudoku {
     }
 
     public void setColumn(Integer index, Group group) {
-        for (int i = 0; i < Cell.MAX_VALUE; i++) {
-            setCell(index, i, group.get(i));
+        for (int i = 0; i < this.groupSize; i++) {
+            setCell(index, i, group.getCell(i));
         }
     }
 
@@ -304,7 +290,7 @@ public class Sudoku {
      *
      * */
     public Cell getCell(Integer x, Integer y){
-        return this.getCell((y * Group.GROUP_SIZE) + x);
+        return this.getCell((y * this.groupSize) + x);
     }
 
     public Cell getCell(Integer index){
@@ -312,7 +298,7 @@ public class Sudoku {
     }
 
     private Cell setCell(Integer x, Integer y, Cell cell){
-        return this.setCell((y * Cell.MAX_VALUE) + x, cell);
+        return this.setCell((y * this.groupSize) + x, cell);
     }
     public Cell setCell(Integer index, Cell cell){
         Cell curr = getCell(index);
@@ -323,7 +309,7 @@ public class Sudoku {
     }
 
     public Sudoku mutate(Double mutationRate) {
-        for(int i = 0; i < Group.GROUP_SIZE; i++) {
+        for(int i = 0; i < this.groupSize; i++) {
             if(ThreadLocalRandom.current().nextInt(0, 101) <= mutationRate * 100) {
                 setBox(i, getBox(i).swap2());
             }

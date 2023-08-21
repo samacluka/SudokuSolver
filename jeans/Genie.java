@@ -4,7 +4,6 @@ import game.Group;
 import game.Sudoku;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -25,29 +24,41 @@ public class Genie {
         new Genie();
     }
 
-    public Genie() {
-        this.startExecutionTimer();
+    public Genie(){
+        Integer[] grid = new Integer[]{
+                7, 9, 0,   0, 0, 0,   0, 0, 3,
+                0, 0, 0,   0, 0, 0,   0, 6, 0,
+                8, 0, 1,   0, 0, 4,   0, 0, 2,
 
-        Integer[] grid = {
-            7, 9, 0,   0, 0, 0,   0, 0, 3,
-            0, 0, 0,   0, 0, 0,   0, 6, 0,
-            8, 0, 1,   0, 0, 4,   0, 0, 2,
+                0, 0, 5,   0, 0, 0,   0, 0, 0,
+                3, 0, 0,   1, 0, 0,   0, 0, 0,
+                0, 4, 0,   0, 0, 6,   2, 0, 9,
 
-            0, 0, 5,   0, 0, 0,   0, 0, 0,
-            3, 0, 0,   1, 0, 0,   0, 0, 0,
-            0, 4, 0,   0, 0, 6,   2, 0, 9,
-
-            2, 0, 0,   0, 3, 0,   0, 0, 6,
-            0, 3, 0,   6, 0, 5,   4, 2, 1,
-            0, 0, 0,   0, 0, 0,   0, 0, 0
+                2, 0, 0,   0, 3, 0,   0, 0, 6,
+                0, 3, 0,   6, 0, 5,   4, 2, 1,
+                0, 0, 0,   0, 0, 0,   0, 0, 0
         };
 
-        populationSize = 8000;
-        selectionRate = 0.4;
-        randomSelectionRate = 0.4;
-        nbChildren = 10;
-        maxNbGenerations = 500;
-        maxNbGenerationsWithoutImprovement = 50;
+        new Genie(grid, 6000, 0.3, 0.3, 10, 1000, 30);
+    }
+
+    public Genie(
+        Integer[] grid,
+        Integer populationSize,
+        Double selectionRate,
+        Double randomSelectionRate,
+        Integer nbChildren,
+        Integer maxNbGenerations,
+        Integer maxNbGenerationsWithoutImprovement
+    ) {
+        this.startExecutionTimer();
+
+        this.populationSize = populationSize;
+        this.selectionRate = selectionRate;
+        this.randomSelectionRate = randomSelectionRate;
+        this.nbChildren = nbChildren;
+        this.maxNbGenerations = maxNbGenerations;
+        this.maxNbGenerationsWithoutImprovement = maxNbGenerationsWithoutImprovement;
 
         original = new Sudoku(grid);
 
@@ -166,40 +177,33 @@ public class Genie {
             parents.add(population[ThreadLocalRandom.current().nextInt(0, population.length)]);
         }
 
-        Collections.shuffle(parents);
-        return parents.toArray(new Sudoku[0]);
+        int p1;
+        int p2;
+
+        do {
+            p1 = ThreadLocalRandom.current().nextInt(0, parents.size());
+            p2 = ThreadLocalRandom.current().nextInt(0, parents.size());
+        } while(p1 == p2);
+
+
+        return new Sudoku[]{parents.get(p1), parents.get(p2)};
     }
 
     private Sudoku[] mate(Sudoku[] parents){
         Sudoku[] children = new Sudoku[nbChildren];
 
-        Integer maxCrossoverPoint = Group.GROUP_SIZE;
-
-        int p1;
-        int p2;
-
-        Sudoku parent1;
-        Sudoku parent2;
+        // caching box size
+        Integer maxCrossoverPoint = parents[0].getGroupSize();
 
         try {
             // create a number of children
             for(int j = 0; j < nbChildren; j++){
-
-                // Get to different parents
-                do {
-                    p1 = ThreadLocalRandom.current().nextInt(0, parents.length);
-                    p2 = ThreadLocalRandom.current().nextInt(0, parents.length);
-                } while(p1 == p2);
-
-                parent1 = parents[p1];
-                parent2 = parents[p2];
-
-                children[j] = parent1.copyLocked();
+                children[j] = parents[0].copyLocked();
 
                 // for all the crossOverPoints
                 for(int i = 0; i < maxCrossoverPoint; i++){
                     int crossoverPoint = ThreadLocalRandom.current().nextInt(0, maxCrossoverPoint);
-                    children[j].setBox(i, getCrossover(i, crossoverPoint, parent1, parent2));
+                    children[j].setBox(i, getCrossover(i, crossoverPoint, parents[0], parents[1]));
                 }
             }
         }
